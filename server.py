@@ -1,12 +1,18 @@
 from wsgiref.simple_server import make_server
 import json
 
+next_id = 0
+
 tasks = [
-    {"id": 0, "task": {"task": "Barrer", "done": True}},
-    {"id": 1, "task": {"task": "Cocinar", "done": False}}
-]
+    #{"id": 0, "title": {"title": "Barrer", "done": True}},
+    #{"id": 1, "title": {"title": "Cocinar", "done": False}}
+    ]
 
 def app(environ, start_response):
+
+
+    global next_id
+
     match environ.get("REQUEST_METHOD"):
 
         # Caso 1: Request GET
@@ -28,8 +34,8 @@ def app(environ, start_response):
                     for task in tasks:
                         all_tasks.append(
                             {
-                                "task": task["task"]["task"], 
-                                "done": task["task"]["done"]
+                                "task": task["title"]["title"], 
+                                "done": task["title"]["done"]
                             }
                         )
 
@@ -47,8 +53,8 @@ def app(environ, start_response):
 
                                 # Armamos el retorno
                                 task = {
-                                            "task": currTask["task"]["task"],
-                                            "done": currTask["task"]["done"]
+                                            "title": currTask["title"]["title"],
+                                            "done": currTask["title"]["done"]
                                         }
 
                                 # Lo convertimos en JSON
@@ -59,6 +65,52 @@ def app(environ, start_response):
                     
                     # Si no lo encontró, devolvemos 404 Not Found
                     return msg404(environ, start_response)
+            else:
+                return msg404(environ, start_response)
+        
+        case "POST":
+            # Extraemos de la request la ruta enviada
+            path_info = environ.get("PATH_INFO")
+
+            # Dividimos la ruta en base a la slash
+            partes = path_info.strip("/").split("/")
+
+            # Chequeamos que la ruta sea válida
+            if (partes[0] == "tasks"):
+                input = environ.get("wsgi.input")
+                content_length = int(environ.get("CONTENT_LENGTH"))
+                input_bytes = input.read(content_length)
+
+                data = json.loads(input_bytes.decode("utf-8"))
+
+                id = next_id
+                title = data.get("title")
+                done = data.get("done")
+
+                tasks.append(
+                        {
+                            "id": id, 
+                            "title": 
+                                {
+                                    "title": title, 
+                                    "done": done
+                                }
+                        }
+                    )
+
+                nueva_tarea = {
+                    "id": id,
+                    "title": title,
+                    "done": done
+                }
+
+                response_json = json.dumps(nueva_tarea).encode("utf-8")
+                next_id += 1
+                
+                status = "201 Created"
+                headers = [("Content-Type", "application/json; charset=utf-8")]
+                start_response(status, headers)
+                return [response_json]
             else:
                 return msg404(environ, start_response)
     

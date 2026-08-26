@@ -1,33 +1,28 @@
 from wsgiref.simple_server import make_server
 import json
 
-next_id = 0
+# Declaramos la lista que contendrá las tareas
+tasks = []
 
-tasks = [
-    #{"id": 0, "title": {"title": "Barrer", "done": True}},
-    #{"id": 1, "title": {"title": "Cocinar", "done": False}}
-    ]
+# Declaramos la variable que llevará el último ID
+next_id = 0
 
 def app(environ, start_response):
 
-
+    # Globalizamos la variable
     global next_id
 
     match environ.get("REQUEST_METHOD"):
 
         # Caso 1: Request GET
         case "GET":
-            # Extraemos de la request la ruta enviada
-            path_info = environ.get("PATH_INFO")
-
-            # Dividimos la ruta en base a la slash
-            partes = path_info.strip("/").split("/")
+            url = divide_url(environ)
 
             # Chequeamos que la primera ruta sea válida
-            if (partes[0] == "tasks"):
+            if (url[0] == "tasks"):
 
                 # Chequeamos si nos pasó o no un ID
-                if (len(partes) == 1):
+                if (len(url) == 1):
 
                     all_tasks = []
 
@@ -45,7 +40,8 @@ def app(environ, start_response):
                     msg200(environ, start_response)
                     return [all_tasks_json]
                 else:
-                    id = int(partes[1])
+                    # Extraemos el ID de la URL
+                    id = int(url[1])
 
                     # Iteramos sobre la lista de tareas en busca del ID
                     for currTask in tasks:
@@ -68,25 +64,24 @@ def app(environ, start_response):
             else:
                 return msg404(environ, start_response)
         
+        # Caso 2: Request POST
         case "POST":
-            # Extraemos de la request la ruta enviada
-            path_info = environ.get("PATH_INFO")
-
-            # Dividimos la ruta en base a la slash
-            partes = path_info.strip("/").split("/")
+            url = divide_url(environ)
 
             # Chequeamos que la ruta sea válida
-            if (partes[0] == "tasks"):
+            if (url[0] == "tasks"):
                 input = environ.get("wsgi.input")
                 content_length = int(environ.get("CONTENT_LENGTH"))
                 input_bytes = input.read(content_length)
 
+                # Extraemos la información del body para la nueva tarea
                 data = json.loads(input_bytes.decode("utf-8"))
 
                 id = next_id
                 title = data.get("title")
                 done = data.get("done")
 
+                # Añadimos la tarea a la lista
                 tasks.append(
                         {
                             "id": id, 
@@ -98,35 +93,30 @@ def app(environ, start_response):
                         }
                     )
 
-                nueva_tarea = {
+                # Creamos el cuerpo para retornar
+                new_task = {
                     "id": id,
                     "title": title,
                     "done": done
                 }
 
-                response_json = json.dumps(nueva_tarea).encode("utf-8")
+                response_json = json.dumps(new_task).encode("utf-8")
                 next_id += 1
                 
-                status = "201 Created"
-                headers = [("Content-Type", "application/json; charset=utf-8")]
-                start_response(status, headers)
+                msg201(environ, start_response)
                 return [response_json]
             else:
                 return msg404(environ, start_response)
 
         # Caso 3: Request PATCH
         case "PATCH":
-            # Extraemos de la request la ruta enviada
-            path_info = environ.get("PATH_INFO")
-
-            # Dividimos la ruta en base a la slash
-            partes = path_info.strip("/").split("/")
+            url = divide_url(environ)
 
             # Chequeamos que la primera ruta sea válida
-            if (partes[0] == "tasks"):
+            if (url[0] == "tasks"):
 
                 # Chequeamos el ID en busca de existencia
-                id = int(partes[1])
+                id = int(url[1])
 
                 input = environ.get("wsgi.input")
                 content_length = int(environ.get("CONTENT_LENGTH"))
@@ -172,17 +162,13 @@ def app(environ, start_response):
 
         # Caso 4: Request DELETE
         case "DELETE":
-            # Extraemos de la request la ruta enviada
-            path_info = environ.get("PATH_INFO")
-
-            # Dividimos la ruta en base a la slash
-            partes = path_info.strip("/").split("/")
+            url = divide_url(environ)
 
             # Chequeamos que la primera ruta sea válida
-            if (partes[0] == "tasks"):
+            if (url[0] == "tasks"):
 
                 # Chequeamos el ID en busca de existencia
-                id = int(partes[1])
+                id = int(url[1])
 
                 if (id < next_id and id >= 0):
                     currID = 0
@@ -196,18 +182,33 @@ def app(environ, start_response):
                 else:
                     return msg404(environ, start_response)
 
-                status = "204 No Content"
-                headers = []
-                start_response(status, headers)
+                msg204(environ, start_response)
                 return []
     
         # Caso default: Method Not Allowed
         case _:
             return msg405(environ, start_response)
 
+def divide_url(environ):
+    # Extraemos de la request la ruta enviada
+    path_info = environ.get("PATH_INFO")
+
+    # Dividimos la ruta en base a la slash
+    return path_info.strip("/").split("/")
+
 def msg200(environ, start_response):
     status = "200 OK"
     headers = [("Content-Type", "application/json; charset=utf-8")]
+    start_response(status, headers)
+
+def msg201(environ, start_response):
+    status = "201 Created"
+    headers = [("Content-Type", "application/json; charset=utf-8")]
+    start_response(status, headers)
+
+def msg204(environ, start_response):
+    status = "204 No Content"
+    headers = []
     start_response(status, headers)
 
 def msg404(environ, start_response):

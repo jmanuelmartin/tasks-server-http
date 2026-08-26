@@ -169,6 +169,37 @@ def app(environ, start_response):
 
             msg200(environ, start_response)
             return[response_json]
+
+        # Caso 4: Request DELETE
+        case "DELETE":
+            # Extraemos de la request la ruta enviada
+            path_info = environ.get("PATH_INFO")
+
+            # Dividimos la ruta en base a la slash
+            partes = path_info.strip("/").split("/")
+
+            # Chequeamos que la primera ruta sea válida
+            if (partes[0] == "tasks"):
+
+                # Chequeamos el ID en busca de existencia
+                id = int(partes[1])
+
+                if (id < next_id and id >= 0):
+                    currID = 0
+
+                    for task in tasks:
+                        if (task["id"] == id):
+                            del tasks[currID]
+                            break
+                        else:
+                            currID += 1
+                else:
+                    return msg404(environ, start_response)
+
+                status = "204 No Content"
+                headers = []
+                start_response(status, headers)
+                return []
     
         # Caso default: Method Not Allowed
         case _:

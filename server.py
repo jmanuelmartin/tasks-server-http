@@ -113,6 +113,62 @@ def app(environ, start_response):
                 return [response_json]
             else:
                 return msg404(environ, start_response)
+
+        # Caso 3: Request PATCH
+        case "PATCH":
+            # Extraemos de la request la ruta enviada
+            path_info = environ.get("PATH_INFO")
+
+            # Dividimos la ruta en base a la slash
+            partes = path_info.strip("/").split("/")
+
+            # Chequeamos que la primera ruta sea válida
+            if (partes[0] == "tasks"):
+
+                # Chequeamos el ID en busca de existencia
+                id = int(partes[1])
+
+                input = environ.get("wsgi.input")
+                content_length = int(environ.get("CONTENT_LENGTH"))
+                input_bytes = input.read(content_length)
+
+                data = json.loads(input_bytes.decode("utf-8"))
+                title = data.get("title")
+                done = data.get("done")
+
+                found = False
+                modified_task = None
+
+                # Iteramos sobre la lista de tareas en busca del ID
+                for currTask in tasks:
+                    if currTask["id"] == id:
+                        found = True
+                        
+                        # Si se enviaron esos campos, se realizan los campos
+                        if (title != None):
+                            currTask["title"]["title"] = title
+                        if (done != None):
+                            currTask["title"]["done"] = done
+
+                        modified_task = {
+                            "id": id,
+                            "title": currTask["title"]["title"],
+                            "done": currTask["title"]["done"]
+                        }
+
+                        break
+
+                # Si no encontró el ID, retornamos 404 Not Found
+                if (found == False): 
+                    return msg404(environ, start_response)
+
+            else:
+                return msg404(environ, start_response)
+
+            response_json = json.dumps(modified_task).encode("utf-8")
+
+            msg200(environ, start_response)
+            return[response_json]
     
         # Caso default: Method Not Allowed
         case _:
